@@ -34,6 +34,7 @@ import { CreateSweepConfigurationV2 } from '@adyen/api-library/lib/src/typings/b
 import { createSweep } from './clients/adyen/adyen-balance-platform.client'
 import Service from '@models/service/Service.class'
 import { AccountHolder } from '@adyen/api-library/lib/src/typings/balancePlatform/accountHolder'
+import { InvalidConfigurationError } from '@root/errors'
 
 type LegalEntityInfoRequiredType = Types.legalEntityManagement.LegalEntityInfoRequiredType
 type Organization = Types.legalEntityManagement.Organization
@@ -118,11 +119,16 @@ const createOrganisation = async (
 ) => {
   const legalEntity = await createOrganisationLegalEntity(session, service)
 
+  if (!service.merchantDetails?.url) {
+    throw new InvalidConfigurationError(`No URL set in merchant details [service_external_id: ${service.externalId}]`)
+  }
+
   const businessLine = await createBusinessLine({
     service: BusinessLineInfo.ServiceEnum.PaymentProcessing,
     industryCode: INDUSTRY_CODE_MAP[governmentActivity],
     legalEntityId: legalEntity.id,
     salesChannels: ['eCommerce'],
+    webData: [{ webAddress: service.merchantDetails.url }],
   })
   const accountHolder = await createAccountHolder(legalEntity.id, service.name)
   const balanceAccount = await createBalanceAccount(accountHolder.id, service.name)
